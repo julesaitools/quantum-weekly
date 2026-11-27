@@ -23,7 +23,17 @@ published (the build strips it as a safety net, see `scripts/content-rules.mjs`)
 | `briefings/*.md` | One Markdown file per briefing, with front matter (`title`, `date`, `period`, `gmail_id`) |
 | `scripts/build.mjs` | Builds `dist/`: archive, one page per briefing, search index, RSS feed |
 | `scripts/content-rules.mjs` | Strips the follow-up section and unwraps Gmail redirect links |
-| `site/` | `style.css` and `search.js` (search with highlighting, no external services) |
+| `scripts/plate.mjs` | Generates each edition's signal plate (SVG) |
+| `site/` | `style.css` (house style) and `search.js` (search with highlighting, section tracking) |
+
+**House style (v2)**
+
+- *Concept:* signal over noise. Paper and ink, an oscilloscope screen, one signal colour.
+- *Colours:* paper `#F3EFE6`, ink `#15171F`, signal `#F0501F` (text variant `#B93A10`); dark mode inverts to `#101116` with signal `#FF6A3D`. All colours are tokens in `site/style.css`.
+- *Type:* Fraunces (display), Newsreader (text), IBM Plex Mono (labels and metadata). Self-hosted from npm (`@fontsource`), so no requests to Google.
+- *Mark:* a Bloch sphere with an orange state vector.
+- *Signal plate:* every edition gets a generated ridgeline image. One peak per top signal; the orange trace rises with how much the edition concerns the Netherlands/Brainport (mentions per 1,000 words, fixed scale 8–30). Deterministic: an edition always keeps the same plate.
+- *Editions are numbered* (No. 1 = 2 September 2026).
 
 **Building locally**
 

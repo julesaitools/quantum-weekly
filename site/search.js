@@ -126,7 +126,7 @@
             if (ranges.length < 2 && !ranges.some((x) => r.from < x.to && r.to > x.from)) ranges.push(r);
           });
           return '<li class="item"><a href="' + doc.slug + '/' + qs + '">' +
-            '<time datetime="' + doc.date + '">' + fmtDate(doc.date) + '</time>' +
+            '<time datetime="' + doc.date + '">No. ' + String(doc.no).padStart(2, '0') + ' · ' + fmtDate(doc.date) + '</time>' +
             '<span class="item-title">' + esc(doc.period || doc.title) + '<span class="hits">' + total + '×</span></span>' +
             ranges.map((r) => '<span class="item-excerpt">' + renderSnippet(doc, r, terms) + '</span>').join('') +
             '</a></li>';
@@ -143,6 +143,22 @@
 
     const initial = new URL(location.href).searchParams.get('q');
     if (initial) { input.value = initial; run(); }
+  }
+
+  // ---- briefing page: mark the section in view in the sidebar ----
+
+  const sideLinks = document.querySelectorAll('.side-toc a');
+  if (sideLinks.length && 'IntersectionObserver' in window) {
+    const byId = new Map([...sideLinks].map((a) => [a.getAttribute('href').slice(1), a]));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        sideLinks.forEach((a) => a.classList.remove('active'));
+        const link = byId.get(e.target.id);
+        if (link) link.classList.add('active');
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    byId.forEach((_, id) => { const h = document.getElementById(id); if (h) observer.observe(h); });
   }
 
   // ---- briefing page: highlight ?q= ----
