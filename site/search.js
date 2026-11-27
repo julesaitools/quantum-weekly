@@ -44,6 +44,8 @@
   if (input) initSearch();
 
   function initSearch() {
+    // The full placeholder does not fit on a phone.
+    if (window.matchMedia('(max-width: 560px)').matches) input.placeholder = 'Search, e.g. EuroHPC, industrialisation';
     const results = document.getElementById('results');
     const archive = document.getElementById('archive');
     let docs = null;

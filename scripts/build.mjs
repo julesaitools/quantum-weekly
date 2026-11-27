@@ -84,11 +84,12 @@ function htmlToText(html) {
 function essenceOf(html, text) {
   const m = html.match(/<p class="lede">([\s\S]*?)<\/p>/);
   const plain = m ? htmlToText(m[1].replace(/^\s*<strong>[\s\S]*?<\/strong>\s*/, '')) : (text.split('\n').find((l) => l.length > 60) || text);
-  return plain.replace(/^[:.\s]+/, '');
+  const t = plain.replace(/^[:.\s—–-]+/, '');
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 function clip(s, max) {
-  return s.length <= max ? s : s.slice(0, s.lastIndexOf(' ', max)) + ' …';
+  return s.length <= max ? s : s.slice(0, s.lastIndexOf(' ', max)).replace(/[,;:.\s—–-]+$/, '') + '…';
 }
 
 function slugify(s) {
@@ -115,14 +116,18 @@ function shapeContent(html) {
     return `<h3 id="${id}">${m ? `<span class="item-no">${m[1]}</span>` : ''}${m ? m[2] : inner}</h3>`;
   });
   // Source/date line directly under an item heading.
-  html = html.replace(/(<\/h3>\s*)<p><em>((?:(?!<\/em>)[\s\S])*)<\/em><\/p>/g, '$1<p class="src">$2</p>');
+  html = html.replace(/(<\/h3>\s*)<p><em>((?:(?!<\/em>)[\s\S])*)<\/em><\/p>/g, (_, h, inner) =>
+    `${h}<p class="src">${inner.trim().replace(/^\(([\s\S]*)\)$/, '$1')}</p>`);
   // Opening italic tagline and the essence paragraph.
   html = html.replace(/^\s*<p><em>((?:(?!<\/em>)[\s\S])*)<\/em><\/p>/, '<p class="dek">$1</p>');
   html = html.replace(/<p><strong>/, '<p class="lede"><strong>');
   html = html.replace(/(<p class="lede"><strong>[^<]*?)\s*[:.]\s*<\/strong>/, '$1</strong>');
   // Method note after the closing rule.
   html = html.replace(/<hr>\s*<p>([\s\S]*?)<\/p>\s*$/, '<footer class="method"><p>$1</p></footer>');
-  return { html, sections };
+  // Pull the opening tagline out, so it can sit under the title.
+  let dek = '';
+  html = html.replace(/^\s*<p class="dek">([\s\S]*?)<\/p>/, (_, d) => { dek = d; return ''; });
+  return { html, sections, dek };
 }
 
 function countTopSignals(md) {
@@ -137,13 +142,15 @@ const FAVICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www
 
 // ---------- templates ----------
 
-function layout({ title, description = '', body, depth = 0, bodyClass = '', ogPath = '' }) {
+function layout({ title, description = '', body, depth = 0, bodyClass = '', ogPath = '', absolute = false }) {
   const base = depth ? '../'.repeat(depth) : '';
+  // 404.html is served at any missing path, so it needs an absolute base.
+  const baseTag = absolute && SITE_URL ? `\n<base href="${esc(new URL(SITE_URL + '/').pathname)}">` : '';
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">${baseTag}
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <meta name="robots" content="noindex">
@@ -243,6 +250,7 @@ ${newer ? `<a class="pager-link newer" href="../${newer.slug}/"><span class="mon
 <header class="hero wrap">
 <p class="kicker mono"><span class="dot"></span>No. ${it.no} · ${formatDate(it.date, true)}</p>
 <h1>${esc(it.period || it.title)}</h1>
+${it.dek ? `<p class="hero-dek">${it.dek}</p>` : ''}
 <figure class="hero-plate">
 ${it.plateWide}
 <figcaption class="mono">Signal plate No. ${it.no} — ${it.peaks} peaks for ${it.peaks} top signals · Dutch relevance ${meter(it.accent)}</figcaption>
@@ -270,13 +278,19 @@ ${nav}
 }
 
 function notFoundPage() {
-  const body = `<main class="wrap notfound">
+  const body = `<header class="bar">
+<div class="wrap bar-inner">
+<a class="brand brand-small" href="./">${MARK}<span>Quantum Weekly</span></a>
+<a class="mono back" href="./">All editions</a>
+</div>
+</header>
+<main class="wrap notfound">
 <p class="kicker mono"><span class="dot"></span>Error 404</p>
 <h1>This state collapsed.</h1>
-<p>The page you were looking for was not observed here. Try the <a href="./">archive</a> or search it.</p>
+<p>The page you were looking for was not observed here. Try the <a href="./">archive</a>, or <a href="./#q">search it</a>.</p>
 </main>`;
   // GitHub Pages serves 404.html from the site root for any missing path: use absolute-ish base.
-  return layout({ title: 'Not found · Quantum Weekly', body, bodyClass: 'notfound-page' });
+  return layout({ title: 'Not found · Quantum Weekly', body, bodyClass: 'notfound-page', absolute: true });
 }
 
 function atomFeed(items) {
@@ -322,7 +336,7 @@ for (const file of files) {
     const nlDensity = ((text.match(NL_TERMS) || []).length / words) * 1000;
     items.push({
       slug: file.replace(/\.md$/, ''), ...data,
-      html: shaped.html, sections: shaped.sections, text,
+      html: shaped.html, sections: shaped.sections, dek: shaped.dek, text,
       essence: essenceOf(shaped.html, text),
       peaks: Math.min(9, Math.max(3, countTopSignals(md) || 6)),
       // Fixed scale (mentions per 1000 words): 8 → low, 30 → max. Fixed so old plates never change.
