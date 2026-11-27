@@ -1,0 +1,91 @@
+:root {
+  --bg: #fbfaf7;
+  --fg: #1c1c1a;
+  --muted: #6b6a65;
+  --line: #e4e1da;
+  --accent: #2f5bd3;
+  --mark: #fff0a8;
+  --card: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --fg: #e9e7e1;
+    --muted: #9c9a93;
+    --line: #2c2b28;
+    --accent: #8aa8ff;
+    --mark: #5b4d10;
+    --card: #1b1b19;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.wrap { max-width: 44rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.site-header { margin-bottom: 2rem; }
+.brand { font-weight: 650; letter-spacing: -0.01em; color: var(--fg); font-size: 1.05rem; }
+.brand::before { content: "◎ "; color: var(--accent); }
+.site-footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+
+.intro { color: var(--muted); margin: 0 0 1.25rem; }
+
+.search input {
+  width: 100%;
+  font: inherit;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  outline: none;
+}
+.search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+
+.month-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 2.25rem 0 0.25rem; }
+.list { list-style: none; margin: 0; padding: 0; }
+.item a { display: block; padding: 0.9rem 0; border-bottom: 1px solid var(--line); color: inherit; }
+.item a:hover { text-decoration: none; }
+.item a:hover .item-title { color: var(--accent); }
+.item time { display: block; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.item-title { display: block; font-weight: 600; margin: 0.1rem 0 0.25rem; }
+.item-excerpt { display: block; color: var(--muted); font-size: 0.92rem; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.item-excerpt + .item-excerpt { margin-top: 0.35rem; }
+.hits { font-weight: 400; color: var(--muted); font-size: 0.8rem; margin-left: 0.5rem; }
+.results { margin-top: 1.5rem; }
+.count, .empty { color: var(--muted); font-size: 0.92rem; }
+
+.back { margin: 0 0 1.5rem; font-size: 0.9rem; }
+.hitbar { font-size: 0.85rem; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.75rem; }
+.briefing header time { color: var(--muted); font-size: 0.9rem; }
+.briefing h1 { font-size: 1.75rem; line-height: 1.25; letter-spacing: -0.015em; margin: 0.25rem 0 1.5rem; }
+.content h2 { font-size: 1.2rem; margin: 2.5rem 0 0.75rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line); }
+.content h3 { font-size: 1.02rem; margin: 1.75rem 0 0.35rem; }
+.content p { margin: 0.6rem 0; }
+.content h3 + p > em:only-child { display: block; color: var(--muted); font-size: 0.88rem; font-style: normal; }
+.content ul, .content ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+.content li { margin: 0.35rem 0; }
+.content blockquote { margin: 1rem 0; padding: 0.25rem 1rem; border-left: 3px solid var(--accent); color: inherit; }
+.content hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0 1rem; }
+.content hr + p { color: var(--muted); font-size: 0.88rem; }
+.content a { overflow-wrap: anywhere; }
+.content > p:first-child { font-size: 1.05rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem 1rem; }
+
+.pager { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.9rem; }
+
+@media print {
+  .site-header, .site-footer, .pager, .back, .hitbar { display: none; }
+  body { background: #fff; color: #000; }
+}
