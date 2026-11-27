@@ -1,17 +1,18 @@
-// Bouwt de statische site uit briefings/*.md naar dist/.
-// Gebruik: node scripts/build.mjs   (of: npm run build)
+// Builds the static site from briefings/*.md into dist/.
+// Usage: node scripts/build.mjs   (or: npm run build)
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
+import { stripFollowUps, unwrapGoogleRedirects } from './content-rules.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'briefings');
 const SITE = join(ROOT, 'site');
 const OUT = join(ROOT, 'dist');
-const SITE_URL = (process.env.SITE_URL || '').replace(/\/$/, ''); // bv. https://julesaitools.github.io/quantum-weekly
+const SITE_URL = (process.env.SITE_URL || '').replace(/\/$/, ''); // e.g. https://julesaitools.github.io/quantum-weekly
 
-const MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ---------- helpers ----------
 
@@ -22,10 +23,10 @@ function formatDate(iso) {
   return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 
-// Minimale front-matter-parser: alleen `key: value` per regel (waarde mag tussen quotes).
+// Minimal front matter parser: one `key: value` per line (value may be quoted).
 function parseFrontMatter(raw, file) {
   const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!m) throw new Error(`${file}: front matter (--- ... ---) ontbreekt`);
+  if (!m) throw new Error(`${file}: missing front matter (--- ... ---)`);
   const data = {};
   for (const line of m[1].split(/\r?\n/)) {
     const kv = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
@@ -37,14 +38,7 @@ function parseFrontMatter(raw, file) {
   return { data, body: m[2] };
 }
 
-// Gmail verpakt links als https://www.google.com/url?q=<echte url>&source=gmail&...
-function unwrapGoogleRedirects(text) {
-  return text.replace(/https?:\/\/www\.google\.com\/url\?q=([^\s)&"<>]+)(?:&(?:amp;)?[^\s)"<>]*)?/g, (_, target) => {
-    try { return decodeURIComponent(target); } catch { return target; }
-  });
-}
-
-// Kale URL als linktekst is lelijk: toon "domein.nl/…" in plaats van de hele URL.
+// A bare URL as link text is ugly: show "domain.com/…" instead of the whole URL.
 function prettifyBareLinks(html) {
   return html.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, (all, href, text) => {
     const decoded = text.replace(/&amp;/g, '&');
@@ -81,7 +75,7 @@ function excerpt(text, max = 300) {
   return first.slice(0, first.lastIndexOf(' ', max)) + ' …';
 }
 
-// Headings krijgen een id zodat je naar een sectie kunt linken.
+// Headings get an id so sections can be linked to.
 function slugify(s) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/<[^>]+>/g, '')
     .replace(/&[a-z]+;/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
@@ -89,7 +83,7 @@ function slugify(s) {
 function addHeadingIds(html) {
   const seen = new Map();
   return html.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (_, lvl, inner) => {
-    let id = slugify(inner) || 'sectie';
+    let id = slugify(inner) || 'section';
     const n = seen.get(id) || 0;
     seen.set(id, n + 1);
     if (n) id += `-${n + 1}`;
@@ -99,10 +93,10 @@ function addHeadingIds(html) {
 
 // ---------- templates ----------
 
-function layout({ title, description = '', body, depth = 0, extraHead = '' }) {
+function layout({ title, description = '', body, depth = 0 }) {
   const base = depth ? '../'.repeat(depth) : '';
   return `<!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -112,12 +106,12 @@ function layout({ title, description = '', body, depth = 0, extraHead = '' }) {
 <link rel="stylesheet" href="${base}style.css">
 <link rel="alternate" type="application/atom+xml" title="Quantum Weekly" href="${base}feed.xml">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='4' fill='%232f5bd3'/><ellipse cx='16' cy='16' rx='13' ry='5' fill='none' stroke='%232f5bd3' stroke-width='2'/><ellipse cx='16' cy='16' rx='13' ry='5' fill='none' stroke='%232f5bd3' stroke-width='2' transform='rotate(60 16 16)'/><ellipse cx='16' cy='16' rx='13' ry='5' fill='none' stroke='%232f5bd3' stroke-width='2' transform='rotate(-60 16 16)'/></svg>">
-${extraHead}</head>
+</head>
 <body>
 <div class="wrap">
 <header class="site-header"><a class="brand" href="${base}./">Quantum Weekly</a></header>
 ${body}
-<footer class="site-footer">Elke maandag een nieuwe briefing · <a href="${base}feed.xml">RSS</a></footer>
+<footer class="site-footer">A new briefing every Monday · <a href="${base}feed.xml">RSS</a></footer>
 </div>
 </body>
 </html>
@@ -146,18 +140,18 @@ ${list.map((it) => `<li class="item"><a href="${it.slug}/">
   }).join('\n');
 
   const body = `<main>
-<p class="intro">Wekelijkse strategische briefing over quantumtechnologie voor Brainport Development. ${items.length} ${items.length === 1 ? 'editie' : 'edities'}.</p>
+<p class="intro">Weekly strategic briefing on quantum technology for Brainport Development. ${items.length} ${items.length === 1 ? 'edition' : 'editions'}.</p>
 <form class="search" role="search" onsubmit="return false">
-<label for="q" class="visually-hidden">Zoek in het archief</label>
-<input id="q" type="search" placeholder="Zoek in alle briefings, bijv. QuTech, EuroHPC, &quot;pilot line&quot;" autocomplete="off" spellcheck="false">
+<label for="q" class="visually-hidden">Search the archive</label>
+<input id="q" type="search" placeholder="Search all briefings, e.g. &quot;QDNL Brainport Eindhoven&quot;, industrialisation, EuroHPC" autocomplete="off" spellcheck="false">
 </form>
 <div id="results" class="results" hidden aria-live="polite"></div>
 <div id="archive">
-${groups || '<p class="empty">Nog geen briefings.</p>'}
+${groups || '<p class="empty">No briefings yet.</p>'}
 </div>
 </main>
 <script src="search.js" defer></script>`;
-  return layout({ title: 'Quantum Weekly — archief', description: 'Doorzoekbaar archief van de wekelijkse quantumbriefing.', body });
+  return layout({ title: 'Quantum Weekly — archive', description: 'Searchable archive of the weekly quantum technology briefing.', body });
 }
 
 function briefingPage(it, prev, next) {
@@ -166,7 +160,7 @@ ${next ? `<a class="newer" href="../${next.slug}/">← ${formatDate(next.date)}<
 ${prev ? `<a class="older" href="../${prev.slug}/">${formatDate(prev.date)} →</a>` : '<span></span>'}
 </nav>`;
   const body = `<main>
-<p class="back"><a href="../">← Archief</a></p>
+<p class="back"><a href="../">← Archive</a></p>
 <article class="briefing">
 <header>
 <time datetime="${it.date}">${formatDate(it.date)}</time>
@@ -213,10 +207,11 @@ for (const file of files) {
   try {
     const raw = readFileSync(join(SRC, file), 'utf8');
     const { data, body } = parseFrontMatter(raw, file);
-    if (!data.title) throw new Error(`${file}: 'title' ontbreekt`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date || '')) throw new Error(`${file}: 'date' moet YYYY-MM-DD zijn`);
-    if (!file.startsWith(data.date)) throw new Error(`${file}: bestandsnaam moet beginnen met de datum (${data.date})`);
-    let html = marked.parse(unwrapGoogleRedirects(body), { gfm: true });
+    if (!data.title) throw new Error(`${file}: 'title' is missing`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date || '')) throw new Error(`${file}: 'date' must be YYYY-MM-DD`);
+    if (!file.startsWith(data.date)) throw new Error(`${file}: file name must start with the date (${data.date})`);
+    if (body.includes(']]>')) console.warn(`Warning: ${file} contains ']]>' (leftover markup from the email?)`);
+    let html = marked.parse(stripFollowUps(unwrapGoogleRedirects(body)), { gfm: true });
     html = externalLinks(addHeadingIds(prettifyBareLinks(html)));
     const text = htmlToText(html);
     items.push({ slug: file.replace(/\.md$/, ''), ...data, html, text, excerpt: excerpt(text) });
@@ -226,11 +221,11 @@ for (const file of files) {
 }
 
 if (errors.length) {
-  console.error('Build mislukt:\n- ' + errors.join('\n- '));
+  console.error('Build failed:\n- ' + errors.join('\n- '));
   process.exit(1);
 }
 
-items.sort((a, b) => (a.slug < b.slug ? 1 : -1)); // nieuwste eerst
+items.sort((a, b) => (a.slug < b.slug ? 1 : -1)); // newest first
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -246,4 +241,4 @@ writeFileSync(join(OUT, 'search-index.json'), JSON.stringify(items.map(({ slug, 
 writeFileSync(join(OUT, 'feed.xml'), atomFeed(items));
 writeFileSync(join(OUT, '.nojekyll'), '');
 
-console.log(`Gebouwd: ${items.length} briefing(s) → dist/`);
+console.log(`Built ${items.length} briefing(s) → dist/`);

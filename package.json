@@ -2,7 +2,7 @@
   "name": "quantum-weekly",
   "private": true,
   "type": "module",
-  "description": "Doorzoekbaar archief van de wekelijkse quantumbriefing",
+  "description": "Searchable archive of the weekly quantum briefing",
   "scripts": {
     "build": "node scripts/build.mjs",
     "serve": "node scripts/build.mjs && npx --yes http-server@14.1.1 dist -p 8080 -c-1"

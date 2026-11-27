@@ -1,4 +1,4 @@
-name: Site bouwen en publiceren
+name: Build and publish site
 
 on:
   push:

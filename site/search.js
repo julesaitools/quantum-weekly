@@ -1,10 +1,10 @@
-// Zoeken in het archief (index) en zoektermen markeren (briefingpagina).
+// Archive search (index page) and search-term highlighting (briefing page).
 (function () {
   'use strict';
 
   // ---- gedeeld ----
 
-  // Lowercase + accenten weg, met een map terug naar posities in de originele tekst.
+  // Lowercase and strip accents, with a map back to positions in the original text.
   function fold(str) {
     let out = '';
     const map = [];
@@ -16,7 +16,7 @@
     return { out, map };
   }
 
-  // "zinnen tussen quotes" blijven heel, de rest wordt per woord gezocht.
+  // "quoted phrases" stay whole; everything else is matched per word.
   function parseQuery(q) {
     const terms = [];
     q.replace(/"([^"]+)"|(\S+)/g, function (_, phrase, word) {
@@ -35,10 +35,10 @@
 
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  const MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const fmtDate = (iso) => { const p = iso.split('-').map(Number); return p[2] + ' ' + MONTHS[p[1] - 1] + ' ' + p[0]; };
 
-  // ---- archiefpagina ----
+  // ---- archive page ----
 
   const input = document.getElementById('q');
   if (input) initSearch();
@@ -59,7 +59,7 @@
               return Object.assign(d, { folded: f.out, map: f.map, foldedTitle: fold(d.title + ' ' + (d.period || '')).out });
             });
           })
-          .catch(() => { results.innerHTML = '<p class="empty">Zoekindex kon niet worden geladen.</p>'; });
+          .catch(() => { results.innerHTML = '<p class="empty">Could not load the search index.</p>'; });
       }
       return loading;
     }
@@ -93,7 +93,7 @@
       if (!q) { results.hidden = true; archive.hidden = false; return; }
       archive.hidden = true;
       results.hidden = false;
-      if (!docs) { results.innerHTML = '<p class="empty">Zoeken…</p>'; load().then(run); return; }
+      if (!docs) { results.innerHTML = '<p class="empty">Searching…</p>'; load().then(run); return; }
 
       const terms = parseQuery(q);
       const found = [];
@@ -103,7 +103,7 @@
         for (const t of terms) {
           const hits = findAll(doc.folded, t);
           const inTitle = doc.foldedTitle.includes(t);
-          if (!hits.length && !inTitle) return; // alle termen moeten voorkomen
+          if (!hits.length && !inTitle) return; // every term must match
           total += hits.length;
           if (hits.length) firstHits.push([hits[0], t.length]);
         }
@@ -111,15 +111,15 @@
       });
 
       if (!found.length) {
-        results.innerHTML = '<p class="empty">Geen briefings gevonden voor <strong>' + esc(q) + '</strong>.</p>';
+        results.innerHTML = '<p class="empty">No briefings found for <strong>' + esc(q) + '</strong>.</p>';
         return;
       }
 
       const qs = '?q=' + encodeURIComponent(q);
       results.innerHTML =
-        '<p class="count">' + found.length + (found.length === 1 ? ' briefing' : ' briefings') + ' voor <strong>' + esc(q) + '</strong></p>' +
+        '<p class="count">' + found.length + (found.length === 1 ? ' briefing' : ' briefings') + ' for <strong>' + esc(q) + '</strong></p>' +
         '<ol class="list">' + found.map(({ doc, total, firstHits }) => {
-          // max. 2 fragmenten, niet overlappend
+          // at most 2 non-overlapping snippets
           const ranges = [];
           firstHits.sort((a, b) => a[0] - b[0]).forEach(([p, l]) => {
             const r = snippet(doc, p, l);
@@ -145,7 +145,7 @@
     if (initial) { input.value = initial; run(); }
   }
 
-  // ---- briefingpagina: markeer ?q= ----
+  // ---- briefing page: highlight ?q= ----
 
   const content = document.querySelector('.briefing .content');
   const q = new URL(location.href).searchParams.get('q');
@@ -182,8 +182,8 @@
 
     const bar = document.createElement('p');
     bar.className = 'hitbar';
-    bar.innerHTML = count + (count === 1 ? ' treffer' : ' treffers') + ' voor <strong>' + esc(q) + '</strong> · ' +
-      '<a href="../?q=' + encodeURIComponent(q) + '">terug naar resultaten</a> · <a href="./">wis markering</a>';
+    bar.innerHTML = count + (count === 1 ? ' match' : ' matches') + ' for <strong>' + esc(q) + '</strong> · ' +
+      '<a href="../?q=' + encodeURIComponent(q) + '">back to results</a> · <a href="./">clear highlights</a>';
     const article = document.querySelector('.briefing');
     article.parentNode.insertBefore(bar, article);
 
